@@ -42,6 +42,14 @@ options:
     description:
     - Should https certificates be validated?
     type: bool
+  feature_flags:
+      description:
+      - Enable or disable a new feature.
+      - This can be used to enable an experimental feature or disable a new feature that breaks backward compatibility.
+      - Supported keys and values are subject to change without notice.  Unknown keys are ignored.
+      - trace_apis can be set to true to enable tracing, data is written to /tmp/um_apis.log.
+      type: dict
+      version_added: 21.6.0
 notes:
   - The modules prefixed with aws\\_cvs\\_netapp are built to Manage AWS Cloud Volumes Service .
 """

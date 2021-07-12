@@ -34,6 +34,7 @@ Support methods and class for AWS CVS modules
 from __future__ import (absolute_import, division, print_function)
 __metaclass__ = type
 
+import logging
 import time
 from ansible.module_utils.basic import missing_required_lib
 
@@ -42,7 +43,7 @@ try:
 except ImportError:
     ansible_version = 'unknown'
 
-COLLECTION_VERSION = "21.2.0"
+COLLECTION_VERSION = "21.6.0"
 
 try:
     import requests
@@ -65,6 +66,9 @@ POW2_BYTE_MAP = dict(
     yb=1024 ** 8
 )
 
+LOG = logging.getLogger(__name__)
+LOG_FILE = '/tmp/aws_cvs_apis.log'
+
 
 def aws_cvs_host_argument_spec():
 
@@ -72,8 +76,32 @@ def aws_cvs_host_argument_spec():
         api_url=dict(required=True, type='str'),
         validate_certs=dict(required=False, type='bool', default=True),
         api_key=dict(required=True, type='str', no_log=True),
-        secret_key=dict(required=True, type='str', no_log=True)
+        secret_key=dict(required=True, type='str', no_log=True),
+        feature_flags=dict(required=False, type='dict', default=dict()),
     )
+
+
+def has_feature(module, feature_name):
+    feature = get_feature(module, feature_name)
+    if isinstance(feature, bool):
+        return feature
+    module.fail_json(msg="Error: expected bool type for feature flag: %s" % feature_name)
+
+
+def get_feature(module, feature_name):
+    ''' if the user has configured the feature, use it
+        otherwise, use our default
+    '''
+    default_flags = dict(
+        strict_json_check=True,                 # if true, fail if response.content in not empty and is not valid json
+        trace_apis=False,                       # if true, append REST requests/responses to LOG_FILE
+    )
+
+    if module.params['feature_flags'] is not None and feature_name in module.params['feature_flags']:
+        return module.params['feature_flags'][feature_name]
+    if feature_name in default_flags:
+        return default_flags[feature_name]
+    module.fail_json(msg="Internal error: unexpected feature flag: %s" % feature_name)
 
 
 class AwsCvsRestAPI(object):
@@ -86,7 +114,11 @@ class AwsCvsRestAPI(object):
         self.verify = self.module.params['validate_certs']
         self.timeout = timeout
         self.url = 'https://' + self.api_url + '/v1/'
+        self.errors = list()
+        self.debug_logs = list()
         self.check_required_library()
+        if has_feature(module, 'trace_apis'):
+            logging.basicConfig(filename=LOG_FILE, level=logging.DEBUG, format='%(asctime)s %(levelname)-8s %(message)s')
 
     def check_required_library(self):
         if not HAS_REQUESTS:
@@ -97,6 +129,8 @@ class AwsCvsRestAPI(object):
         if params is not None:
             self.module.fail_json(msg='params is not implemented.  api=%s, params=%s' % (api, repr(params)))
         url = self.url + api
+        status_code = None
+        content = None
         json_dict = None
         json_error = None
         error_details = None
@@ -107,38 +141,68 @@ class AwsCvsRestAPI(object):
             'Cache-Control': "no-cache",
         }
 
+        def check_contents(response):
+            '''json() may fail on an empty value, but it's OK if no response is expected.
+               To avoid false positives, only report an issue when we expect to read a value.
+               The first get will see it.
+            '''
+            if method == 'GET' and has_feature(self.module, 'strict_json_check'):
+                contents = response.content
+                if len(contents) > 0:
+                    raise ValueError("Expecting json, got: %s" % contents)
+
         def get_json(response):
             ''' extract json, and error message if present '''
             error = None
             try:
                 json = response.json()
             except ValueError:
-                error = 'malformed json response: %s' % str(response.content)
-                json = None
+                check_contents(response)
+                return None, None
             success_code = [200, 201, 202]
             if response.status_code not in success_code:
-                if error is None:
-                    error = json.get('message')
+                error = json.get('message')
             return json, error
 
+        def sanitize(value, key=None):
+            if isinstance(value, dict):
+                new_dict = dict()
+                for key, value in value.items():
+                    new_dict[key] = sanitize(value, key)
+                return new_dict
+            else:
+                if key in ['api-key', 'secret-key', 'password']:
+                    return '*' * 12
+                else:
+                    return value
+
+        self.log_debug('sending', repr(sanitize(dict(method=method, url=url, verify=self.verify, params=params,
+                                                     timeout=self.timeout, json=json, headers=headers))))
         try:
             response = requests.request(method, url, headers=headers, timeout=self.timeout, json=json)
+            content = response.content  # for debug purposes
+            status_code = response.status_code
             # If the response was successful, no Exception will be raised
+            response.raise_for_status()
             json_dict, json_error = get_json(response)
         except requests.exceptions.HTTPError as err:
             __, json_error = get_json(response)
             if json_error is None:
+                self.log_error(status_code, 'HTTP error: %s' % err)
                 error_details = str(err)
+            # If an error was reported in the json payload, it is handled below
         except requests.exceptions.ConnectionError as err:
+            self.log_error(status_code, 'Connection error: %s' % err)
             error_details = str(err)
         except Exception as err:
+            self.log_error(status_code, 'Other error: %s' % err)
             error_details = 'general exception: %s' % str(err)
         if json_error is not None:
+            self.log_error(status_code, 'Endpoint error: %d: %s' % (status_code, json_error))
             error_details = json_error
-
+        self.log_debug(status_code, content)
         return json_dict, error_details
 
-    # If an error was reported in the json payload, it is handled below
     def get(self, api, params=None):
         method = 'GET'
         return self.send_request(method, api, params)
@@ -166,3 +230,12 @@ class AwsCvsRestAPI(object):
             time.sleep(15)
             response, dummy = self.get('Jobs/%s' % job_id)
         return str(response['state'])
+
+    def log_error(self, status_code, message):
+        LOG.error("%s: %s", status_code, message)
+        self.errors.append(message)
+        self.debug_logs.append((status_code, message))
+
+    def log_debug(self, status_code, content):
+        LOG.debug("%s: %s", status_code, content)
+        self.debug_logs.append((status_code, content))

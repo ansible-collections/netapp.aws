@@ -31,6 +31,14 @@ The modules currently support Active Directory, Pool, FileSystem (Volume), and S
 
 # Release Notes
 
+## 21.6.0
+
+### Minor Changes
+- all modules - ability to trace API calls and responses.
+
+### Bug Fixes
+- all modules - fix traceback TypeError 'NoneType' object is not subscriptable when URL points to a web server.
+
 ## 21.2.0
 
 ### Bug Fixes
