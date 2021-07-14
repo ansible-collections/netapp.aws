@@ -5,6 +5,19 @@ NetApp AWS CVS Collection Release Notes
 .. contents:: Topics
 
 
+v21.6.0
+=======
+
+Minor Changes
+-------------
+
+- all modules - ability to trace API calls and responses.
+
+Bugfixes
+--------
+
+- all modules - fix traceback TypeError 'NoneType' object is not subscriptable when URL points to a web server.
+
 v21.2.0
 =======
 

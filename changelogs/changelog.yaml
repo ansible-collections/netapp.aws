@@ -62,3 +62,13 @@ releases:
     fragments:
     - DEVOPS-3644.yaml
     release_date: '2021-02-04'
+  21.6.0:
+    changes:
+      bugfixes:
+      - all modules - fix traceback TypeError 'NoneType' object is not subscriptable
+        when URL points to a web server.
+      minor_changes:
+      - all modules - ability to trace API calls and responses.
+    fragments:
+    - DEVOPS-3569.yaml
+    release_date: '2021-07-14'
