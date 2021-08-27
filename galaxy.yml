@@ -7,6 +7,7 @@ license_file: COPYING
 readme: README.md
 description: Cloud Volumes Service (CVS) for AWS
 repository: https://github.com/ansible-collections/netapp.aws
+issues: https://github.com/ansible-collections/netapp.aws/issues
 homepage: https://netapp.io/configuration-management-and-automation/
 tags:
     - storage
