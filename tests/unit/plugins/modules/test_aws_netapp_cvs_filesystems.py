@@ -8,13 +8,20 @@ __metaclass__ = type
 
 import json
 import pytest
+import sys
 
 from ansible.module_utils import basic
 from ansible.module_utils._text import to_bytes
 from ansible_collections.netapp.aws.tests.unit.compat import unittest
 from ansible_collections.netapp.aws.tests.unit.compat.mock import patch
+import ansible_collections.netapp.aws.plugins.module_utils.netapp as netapp_utils
+
 from ansible_collections.netapp.aws.plugins.modules.aws_netapp_cvs_filesystems \
     import AwsCvsNetappFileSystem as fileSystem_module
+
+
+if not netapp_utils.HAS_REQUESTS and sys.version_info < (2, 7):
+    pytestmark = pytest.mark.skip('Skipping Unit Tests on 2.6 as requests is not be available')
 
 
 def set_module_args(args):
