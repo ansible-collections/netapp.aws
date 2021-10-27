@@ -40,6 +40,12 @@ The modules currently support Active Directory, Pool, FileSystem (Volume), and S
 
 # Release Notes
 
+
+## 21.7.0
+
+### Minor Changes
+- all modules - allow usage of Ansible module group defaults - for Ansible 2.12+.
+
 ## 21.6.0
 
 ### Minor Changes
