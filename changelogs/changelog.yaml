@@ -72,3 +72,10 @@ releases:
     fragments:
     - DEVOPS-3569.yaml
     release_date: '2021-07-14'
+  21.7.0:
+    changes:
+      minor_changes:
+      - PR1 - allow usage of Ansible module group defaults - for Ansible 2.12+.
+    fragments:
+    - DEVOPS-4416.yaml
+    release_date: '2021-11-03'
