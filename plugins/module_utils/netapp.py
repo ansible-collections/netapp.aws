@@ -43,7 +43,7 @@ try:
 except ImportError:
     ansible_version = 'unknown'
 
-COLLECTION_VERSION = "21.7.0"
+COLLECTION_VERSION = "21.7.1"
 
 try:
     import requests
