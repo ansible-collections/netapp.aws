@@ -41,6 +41,10 @@ The modules currently support Active Directory, Pool, FileSystem (Volume), and S
 
 # Release Notes
 
+## 21.8.0
+
+### Minor change
+  - Requires Ansible 2.14 or higher
 
 ## 21.7.0
 

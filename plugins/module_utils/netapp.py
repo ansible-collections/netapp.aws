@@ -43,7 +43,7 @@ try:
 except ImportError:
     ansible_version = 'unknown'
 
-COLLECTION_VERSION = "21.7.1"
+COLLECTION_VERSION = "21.8.0"
 
 try:
     import requests
@@ -77,7 +77,7 @@ def aws_cvs_host_argument_spec():
         validate_certs=dict(required=False, type='bool', default=True),
         api_key=dict(required=True, type='str', no_log=True),
         secret_key=dict(required=True, type='str', no_log=True),
-        feature_flags=dict(required=False, type='dict', default=dict()),
+        feature_flags=dict(required=False, type='dict'),
     )
 
 
